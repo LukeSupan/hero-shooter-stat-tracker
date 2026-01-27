@@ -13,6 +13,7 @@ tank,tank2/dps1,dps2/support1,support2/win(orloss)
 - **slashes**(``/``) are separators for different roles.
 - you do **NOT** need to fill all slots.
 - Use `none` to fill slots that have a random.
+- One game per line, then go to a newline, each line should end with either win or loss. Ignore draws.
 
 ## Examples
 ```

@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+
+
 # MUST BE FORMATTED AS FOLLOWS:
 # tank,tank2/dps1,dps2/support1,support2/win(orloss)
 # you dont need to fill every slot. use none when you dont have someone you know
@@ -14,13 +16,17 @@ from collections import defaultdict
 # luke(mvp),aiden/mar/kayla/win
 # in this case, luke is the mvp.
 # i treat mvp and svp the same, just say mvp. you can see the win loss ratio for mvps
+# THIS IS ALL IN THE README. ITS JUST ALSO HERE TO BE SAFE
 
-# open the formatted file (look in README)
+
+
+# open the formatted file (look in README to generate)
 with open("games.txt") as f:
     games = [line.strip() for line in f if line.strip()]
 
-# || DATA SETUP
 
+
+# || DATA SETUP
 # make a player, contains most data
 def make_player():
     return {
