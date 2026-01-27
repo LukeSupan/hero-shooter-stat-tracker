@@ -1,1 +1,1 @@
-losses
+games

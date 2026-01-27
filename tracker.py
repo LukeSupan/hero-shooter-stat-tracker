@@ -99,7 +99,16 @@ def get_role_comp_key(team):
             sorted_players = sorted(slot.split(",")) # split the slot at the ',' and sort the players alphabetically to get one consistent key
             names = ", ".join(sorted_players) # rejoin the list back into a string with a comma (with a space to look better), basically just makes sure we have no duplicate role comp
             players.append(f"{role}:{names}") # add the final string to the list
-        return " | ".join(players) # make one final string by joining with |
+    return " / ".join(players) # make one final string by joining with /
+
+# sort the comps of a certain size by winrate (games if equal)
+def sized_comps_sort_key(comp_stats):
+    _, stats = comp_stats
+    return (
+        winrate(stats["wins"], stats["games"]),
+        stats["games"]
+    )
+
 
     
 
@@ -144,6 +153,14 @@ for line in games:
 
 
         # for this game, adjust the role comp stats
+    
+    role_comp_key = get_role_comp_key(team)
+    role_comp_stats[role_comp_key]["games"] += 1
+
+    if result == "win":
+        role_comp_stats[role_comp_key]["wins"] += 1
+    else:
+        role_comp_stats[role_comp_key]["losses"] += 1
 
 
 
@@ -164,9 +181,34 @@ for player, stats in sorted(player_stats.items()):
 
 
 # print non role comps (2 or more) to avoid some clutter, 1 is reasonable if you want to change this. i just prefer less clutter and who cares about 1 game.
-print("\n===== NON-ROLE-BASED COMPS =====")
-print(f"{comp_stats}")
+# this is one of the most interesting parts. you can see who is weak. and strong i suppose
+print("\n\n===== NON-ROLE-BASED COMPS =====")
 
+# print in order of smallest to largest team size first
+team_sizes = sorted({len(comp) for comp in comp_stats})
+
+for size in team_sizes:
+    print(f"\n----- {size}-PLAYER COMPS -----")
+
+    # use list comprehension to make a new list
+    # gather comps of this size. you can limit the number of games needed here with stats["games"] > x
+    # result is a list of tuples: (("aiden", "luke"), {"wins": 1.....}), and so on
+    sized_comps = [
+        (comp, stats) # we are adding comps and their stats to the list, output
+        for comp, stats in comp_stats.items() # this gets all comps, iteration
+        if len(comp) == size and stats["games"] > 0 # get only comps of this size, filter
+    ]
+
+    # sort by winrate, the key is winrate first, games played as backup
+    sized_comps.sort(key=sized_comps_sort_key, reverse=True)
+    
+    # print the comps in order
+    for comp, stats in sized_comps:
+        names = ", ".join(comp) # combine names for the comp
+        print(f"{names:30} {winrate(stats["wins"], stats["games"]):5.1f}% ({stats['games']} games)") # pad to reach 30 spaces, 5 spaces to have it line up nice
 
 
 # print role comps (3 or more) would be really cluttered with less
+# i also like this one. you can see who is weak on what. gotta play more though
+print("\n===== ROLE-BASED COMPS =====")
+# print in order of smallest to largest team size first
