@@ -5,21 +5,23 @@ from collections import defaultdict
 # I FOUND MYSELF MAKING A TON OF SMALL TWEAKS TO VIEW THE DATA DIFFERENTLY WHILE USING IT MYSELF
 # IT WILL BE SOME WORK TO READ THROUGH. HOWEVER, I BELIEVE IN YOU.
 
-
 # MUST BE FORMATTED AS FOLLOWS:
 # tank,tank2/dps1,dps2/support1,support2/win(orloss)
 # change file name below. a clear explanation and examples are in README, mvp is entirely optional
 #            |
 #            |
 #            V
-# || FILE FOR INPUT (THIS IS WHAT YOU ARE LOOKING FOR MOST LIKELY)
+# --------------------------
+# INPUT FILE (what you are looking for most likely)
+# --------------------------
 # open the formatted file (look in README to generate)
 with open("games.txt") as f: # CHANGE games.txt TO MATCH YOUR TEXT FILE. GAMES.TXT IS JUST MY CHOICE
     games = [line.strip() for line in f if line.strip()]
 
 
-
-# || DATA MODELS
+# --------------------------
+# DATA MODELS
+# --------------------------
 # make a new player, contains all individual data. bulk of information.
 # you can see most of these things on tracking sites. but you can control the data here
 # theres also all that other stuff
@@ -57,31 +59,35 @@ role_comp_stats = defaultdict(make_role_comp)
 
 
 
-# || PARSING
+# --------------------------
+# PARSING FUNCTIONS
+# --------------------------
 # parse mvps out of names.
 # result is the name minus (mvp) if present and true (for removal) or false (for no need).
 def parse_name_and_mvp(name):
-    name.strip()
+    name = name.strip()
     if name.endswith("(mvp)"):
         return name.replace("(mvp)", ""), True
     return name, False
 
 # parse the notable game stats out of the line, mvp is still included for now
 # result is dictionary of the game, showing the tanks, dps, and support, and then a result win or loss
-# at this point tank could be something like: luke,mar(mvp).
+# at this point tank could still be something like: luke,mar(mvp).
 def parse_game_line(line):
     tank_player, dps_player, support_player, result = line.split("/")
-    return { "tank": tank_player, "dps": dps_player, "support": support_player }, result # return dictionary and result
+    return { "tank": tank_player, "dps": dps_player, "support": support_player }, result # return 2-tuple with dictionary and result
 
 
 
-# HELPERS BELOW
-# helper function for printing
-# result is winrate
+# --------------------------
+# PROCESSING FUNCTIONS
+# --------------------------
+# result is winrate, given wins and games, returns 0 for no games
 def winrate(wins, games):
     return (wins / games * 100) if games else 0
 
-# extract players for non role specific winrates
+# extract a set of all player names from the parsed team dict from parse_game_line
+# mvp is cut away here.
 # result is the set of the comp to be updated
 def extract_players(team):
     players = set()
@@ -94,7 +100,19 @@ def extract_players(team):
                 players.add(name)
     return players
 
-# get the key of the role comp to be updated
+# sort the comps of a certain size by winrate (games if equal)
+# works for both role-based and non role-based
+# returns a tuple (winrate, games) for sorting the comps when given a comps stats from dict
+def sized_comps_sort_key(comp_stats):
+    _, stats = comp_stats
+    return (
+        winrate(stats["wins"], stats["games"]),
+        stats["games"]
+    )
+
+# generate a string as a key for a role-based comp
+# gets rid of MVP, sorts alphabetically per role, then joins the roles with a /. making a final string key
+# IF YOU WANT YOUR FINAL RESULT OF THE PRINTING TO LOOK DIFFERENT. CHANGE IT HERE. BUT. YOU NEED TO ACCOUNT FOR THIS CHANGE IN role_comp_team_size BELOW
 def get_role_comp_key(team):
     players = [] # players like above but as a list. so it matters 
 
@@ -102,7 +120,7 @@ def get_role_comp_key(team):
     for role in ("tank", "dps", "support"):
         slot = team[role] # check each slot
         if slot == "none":
-            players.append(f"{role}:none") # this role is empty
+            players.append(f"{role}: none") # this role is empty
         else:
             
             # before adding them to the key. we need to get rid of mvp, otherwise we get duplicate comps.
@@ -113,25 +131,18 @@ def get_role_comp_key(team):
 
             sorted_players = sorted(clean_names)
             names = ", ".join(sorted_players) # rejoin the list back into a string with a comma (with a space to look better), basically just makes sure we have no duplicate role comp
-            players.append(f"{role}:{names}") # add the final string to the list
+            players.append(f"{role}: {names}") # add the final string to its slot in the list (THIS IS WHERE YOU WOULD CHANGE THE FORMATTING. IF YOU DO ANOTHER FUNCTION (role_comp_team_size) NEEDS TO CHANGE A GOOD BIT.
     return " / ".join(players) # make one final string by joining with /
 
-# sort the comps of a certain size by winrate (games if equal)
-# works for both role-based and non role-based
-def sized_comps_sort_key(comp_stats):
-    _, stats = comp_stats
-    return (
-        winrate(stats["wins"], stats["games"]),
-        stats["games"]
-    )
-
-# get role comp team size. cuz they are weird
+# count the number of unique players in role-based comp key
+# cant just do length like with the other because the string is formatted
+# if you change the formatting above, you are going to have to change this to account for it. sorry.
 def role_comp_team_size(role_comp_key):
-    # split the /
     slots = role_comp_key.split(" / ")
     players = set()
     for slot in slots:
         _, names = slot.split(":")
+        names = names.strip()
         if names != "none":
             for name in names.split(", "):
                 players.add(name)
@@ -139,7 +150,9 @@ def role_comp_team_size(role_comp_key):
 
     
 
-# || AGGREGATION
+# --------------------------
+# AGGREGATION
+# --------------------------
 # for each game, add relevant stats
 for line in games:
     team, result = parse_game_line(line)
@@ -158,7 +171,7 @@ for line in games:
             if is_mvp:
                 player_stats[name]["mvps"] += 1
 
-            # im considering adding mvp tracking for each role. might be cluttered. but also i really enjoy how specific the data is
+            # im considering adding mvp tracking for each role. might be cluttered. but also i really enjoy how specific the data is. future thing anyway. if youd like to add it go ahead
             if result == "win":
                 player_stats[name][f"{role}wins"] += 1 # add 1 to role winrate
                 player_stats[name]["wins"] += 1
@@ -179,8 +192,7 @@ for line in games:
         comp_stats[comp_key]["losses"] += 1
 
 
-        # for this game, adjust the role comp stats
-    
+    # for this game, adjust the role comp stats
     role_comp_key = get_role_comp_key(team)
     role_comp_stats[role_comp_key]["games"] += 1
 
@@ -191,7 +203,9 @@ for line in games:
 
 
 
-# || PRINTING
+# --------------------------
+# PRINTING
+# --------------------------
 # print individual players stats
 for player, stats in sorted(player_stats.items()):
     print(f"\n===== {player} =====") # 5 ='s on left plus a space centers it above the following
@@ -244,7 +258,6 @@ for size in team_sizes:
 # i also like this one. you can see who is weak on what. gotta play more though
 # proccess is super similar to above, but role_comps have a function to get the size instead.
 print("\n===== ROLE-BASED COMPS =====")
-# print in order of smallest to largest team size first
 
 # print in order of smallest to largest team size first
 team_sizes = sorted({role_comp_team_size(role_comp) for role_comp in role_comp_stats})
